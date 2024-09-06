@@ -21,7 +21,7 @@ Follow these steps to get your development environment set up:
 
    ```bash
    git clone https://github.com/arunengel/CodeApplication.git
-   cd yourprojectname
+   cd CodeApplication
 
 2. **Clone the repository**
    python3 -m venv venv
