@@ -23,9 +23,14 @@ Follow these steps to get your development environment set up:
    git clone https://github.com/arunengel/CodeApplication.git
    cd CodeApplication
 
-2. **Clone the repository**
+2. **Create a virtual environment**
    python3 -m venv venv
    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
 
-3. **Install Vue and Django**
+### Running the application
+
+```bash
+python3 manage.py runserver
+
+
    
