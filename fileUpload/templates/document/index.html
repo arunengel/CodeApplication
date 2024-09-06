@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>MetaTimes</title>
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bulma@0.9.3/css/bulma.min.css">
+        <!-- Font Awesome CSS -->
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    </head>
+
+    <div id="app">
+        <body>
+            <section class="hero is-blue">
+                <div class="hero-body has-text-centered">
+                    <div class="container">
+                        <h1 class="title">
+                            MetaTimes
+                        </h1>
+                        <h2 class="subtitle is-thin">
+                            Powered by METAPOTT GmbH
+                        </h2>
+                    </div>
+                </div>
+            </section>
+        </body>
+
+        <div class="is-flex is-justify-content-center is-align-items-center" style="height: 10vh;">
+            Laden Sie Ihre Stundenzettel in Form einer PDF hoch. Sie kriegen völlig automatisch eine Excel-Datei mit
+            allen eingetragenen Arbeitsstunden!
+        </div>
+
+        <form class="box">
+            <div class="is-flex is-justify-content-center is-align-items-center" style="height: 30vh;">
+                <div class="box">
+                    <div class="file">
+                        <label class="file-label">
+                        <input class="file-input" type="file" ref="file" @change="selectFile" accept=".pdf,application/pdf">
+                        <span class="file-cta">
+                            <span class="file-icon">
+                            <i class="fas fa-upload"></i>
+                            </span>
+                            <span class="file-label"> Stundenzettel auswählen </span>
+                        </span>
+                        </label>
+                    </div>
+                    <div class="is-flex is-justify-content-center mt-3">
+                        <button class="button is-primary mt-2" input type="button" @click="upload">Upload</button>
+                    </div>
+                </div>
+            </div>
+            
+        </form>
+
+        <div class="is-flex is-justify-content-center mt-3">
+            <a v-if="downloadLink" :href="downloadLink" target="_blank" class="button is-primary is-medium is-rounded" @click="refreshPage">
+                <span class="icon">
+                    <i class="fas fa-download"></i>
+                </span>
+                <span>Download Excel</span>
+            </a>
+        </div>
+        
+
+        <form class="box" v-if="downloadLink">
+            <div class="is-flex is-justify-content-center is-align-items-center" style="height: 30vh;">
+                <div class="box">
+                    <div class="file">
+                        <label class="file-label">
+                        <input v-model="name" type="text" placeholder="Your Name" style="width: 300px; padding: 10px;">
+                        <input v-model="receiverMail" type="text" placeholder="Receivers Mail Address" style="width: 300px; padding: 10px;">
+                        </label>
+                    </div>
+                    <div class="is-flex is-justify-content-center mt-3">
+                        <button class="button is-primary mt-2" input type="button" @click="sendMail">Send Mail</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+        
+    </div>
+    
+    <!-- Use the production build of Vue -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+    <!-- Use the production build of Axios -->
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data(){
+                return{
+                    message: '',
+                    progress: 0,
+                    document: null,
+                    extractedData: null,
+                    downloadLink: '',
+                    name: '',
+                    receiverMail: '',
+                    startTime: null,
+                    elapsedTime: null
+                }
+            },
+            delimiters: ['[[', ']]'],
+            methods: {
+                selectFile(){
+                    console.log("File successfully selected.")
+                    this.document = this.$refs.file.files.item(0)
+                    if(this.document.type !== 'application/pdf'){
+                        alert('Please only upload TimeSheets as a PDF');
+                        return;
+                    }
+                },
+                upload() {
+                    this.startTime = Date.now();
+                    file = this.document
+                    console.log("File Uploading starts...")
+                    let formData = new FormData()
+                    formData.append('document', file)
+
+                    axios.post('/upload/', formData, {
+                        headers: {
+                            "Content-Type": "multipart/form-data",
+                            "X-CSRFToken": "{{ csrf_token }}"
+                        }
+                    })
+                    .then(response => {
+                        if (response.data.success) {
+                            this.message = 'File Uploading finished successfully.';
+                            this.extractedData = response.data.data; 
+                            this.downloadLink = `/media/${response.data.excel_file_path}`;
+                            this.elapsedTime = (Date.now()- this.startTime) / 1000;
+                            console.log("Time taken for completion: " + this.elapsedTime + " seconds");
+                        } else {
+                            this.message = 'File Uploading failed.';
+                        }
+                        console.log(this.message);
+                        console.log("Finished!");
+                        this.document = null;
+                    })
+                    .catch(error => {
+                        this.progress = 0
+                        this.message = JSON.stringify(error)
+                        this.document = null
+                        console.log("Failure.")
+                    })
+                },
+                sendMail() {
+                    const formData = new FormData();
+                    formData.append('name', this.name);
+                    formData.append('receiver_email', this.receiverMail);
+                    formData.append('file_path', this.downloadLink);
+
+                    axios.post('/send_email/', formData, {
+                        headers: {
+                            'X-CSRFToken': "{{ csrf_token }}"
+                        }
+                    })
+                    .then(response => {
+                        if (response.data.success) {
+                            alert('Email sent!');
+                        } else {
+                            alert('Failed to send mail: ' + response.data.message);
+                        }
+                    })
+                    .catch(error => {
+                        alert('An error occurred while sending the email.');
+                        console.log(error);
+                    });
+                },
+                refreshPage() {
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1000);
+                    axios.post('/delete-files/')
+                        .then(response => {
+                            console.log("Files deleted!");
+                        })
+                        .catch(error => {
+                            console.error("Error while deleting the files:", error);
+                        });
+                }  
+            }
+            
+        }).mount('#app');
+    </script>
+
+
+  <style lang="scss">
+        .hero.is-blue {
+            background-color: #B9DCFF;
+            color: white;
+        }
+        .subtitle.is-thin {
+            font-weight: 300;
+        }
+  </style>
+  
+</html>
