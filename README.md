@@ -31,6 +31,3 @@ Follow these steps to get your development environment set up:
 
 ```bash
 python3 manage.py runserver
-
-
-   
